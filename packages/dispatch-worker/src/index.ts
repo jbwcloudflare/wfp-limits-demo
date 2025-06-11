@@ -1,21 +1,13 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		try {
-			const worker = env.DISPATCHER.get('customer-worker');
-			return await worker.fetch(request);
+			// TODO it would be nice to improve the typescript types here for RPC (remove 'any')
+			const userWorker = env.DISPATCHER.get('user-worker-1') as any;
+			const bindingWrapper = env.DISPATCHER.get('binding-wrapper-worker-1') as any;
+			using kvWrapper = await bindingWrapper.kv('user-worker-1');
+			const resp = await userWorker.handleRequest(kvWrapper, request);
+			return resp;
 		} catch (e) {
 			return new Response(String(e), { status: 500 });
 		}

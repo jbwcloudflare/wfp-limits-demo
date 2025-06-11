@@ -1,20 +1,36 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import { env, WorkerEntrypoint } from 'cloudflare:workers';
+import { Hono } from 'hono';
 
-export default {
-	async fetch(request, env, ctx): Promise<Response> {
-		using kv = await env.BINDING_WRAPPERS.kv();
-		const val = await kv.get('my-key');
-		return new Response(val ?? 'null');
-	},
-} satisfies ExportedHandler<Env>;
+/**
+ * UserWorker is called by the dynamic dispatcher.
+ * The dispatcher passes in pre-wrapped bindings that transparently enforce limits and emit usage data behind the scenes
+ */
+export default class UserWorker extends WorkerEntrypoint {
+	// TODO I couldn't figure out how to call the normal fetch() function with extra params (like the kv namespace)
+	// So I added this RPC target instead and called it directly from the dispatcher
+	async handleRequest(kv: KVNamespace, request: Request): Promise<Response> {
+		return app.fetch(request, { ...env, kv });
+	}
+
+	async fetch(): Promise<Response> {
+		return new Response('', { status: 404 });
+	}
+}
+
+// A simple hono app to get/put keys from KV
+const app = new Hono<{ Bindings: Env & { kv: KVNamespace } }>();
+
+app.get('/:key', async (c) => {
+	const val = await c.env.kv.get(c.req.param('key'));
+	return c.text(val ?? 'null');
+});
+
+app.post('/:key', async (c) => {
+	await c.env.kv.put(c.req.param('key'), await c.req.text());
+	return c.text('OK');
+});
+
+app.onError((err, c) => {
+	console.error(`${err}`);
+	return c.text(String(err), 500);
+});

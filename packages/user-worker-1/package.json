@@ -7,12 +7,15 @@
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest",
-		"cf-typegen": "wrangler types -c ./wrangler.jsonc -c ../binding-wrapper-worker-1/wrangler.jsonc"
+		"cf-typegen": "wrangler types"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.8.19",
 		"typescript": "^5.5.2",
 		"vitest": "~3.0.7",
 		"wrangler": "^4.19.2"
+	},
+	"dependencies": {
+		"hono": "^4.7.11"
 	}
 }
