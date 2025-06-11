@@ -1,0 +1,22 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "dispatch-worker-2",
+	"account_id": "f1f050202632dd27369847f0af466a40",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-06-10",
+	"observability": {
+		"enabled": true
+	},
+	"dispatch_namespaces": [
+		{
+			"binding": "DISPATCHER",
+			"namespace": "jwheeler-wfp-limits-demo"
+		}
+	],
+	"analytics_engine_datasets": [
+		{
+			"binding": "USAGE",
+			"dataset": "usageEvents"
+		}
+	]
+}

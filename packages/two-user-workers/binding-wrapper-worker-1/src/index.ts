@@ -34,7 +34,7 @@ export class KVWrapper extends RpcTarget {
 
 	async get(key: string): Promise<string | null> {
 		await enforceLimit(this.namespaceID);
-		const val = env.KV.get(key);
+		const val = await env.KV.get(key);
 		await emitUsageEvent(this.namespaceID, 'get', key);
 		return val;
 	}

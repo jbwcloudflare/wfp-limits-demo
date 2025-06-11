@@ -1,13 +1,11 @@
 # Demo
 
-## packages/binding-wrapper-worker-1
-This Worker "wraps" a KV binding. It wraps the `get` and `put` methods with versions that:
-  1) pretend to check/enforce limits 
-  2) perform the underlying `get` or `put` operation
-  3) then emit usage data to Workers Analytics Engine
+## packages/single-user-worker
 
-## packages/user-worker-1
-This Worker is an example application that uses the "wrapped" KV binding.
+1 User Worker per application w/ access to a KV namespace -- contains custom code to facilitate "wrapping" the KV namespace for limiting/analytics
 
-## packages/dispatcher-worker
-This is the dynamic dispatch worker that takes care of setting up binding wrappers and routing requests to the user worker.
+## packages/two-user-workers
+
+2 User Workers per application.
+
+One has access to the KV namespace and handles "wrapping" it. The other worker is the normal "application" (closer to normal a CF setup)

@@ -1,2 +1,3 @@
 packages:
-  - 'packages/*'
+  - "packages/two-user-workers/*"
+  - "packages/single-user-worker/*"

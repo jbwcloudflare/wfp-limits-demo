@@ -1,0 +1,16 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "user-worker-2",
+	"account_id": "f1f050202632dd27369847f0af466a40",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-06-10",
+	"observability": {
+		"enabled": true
+	},
+	"kv_namespaces": [
+		{
+			"binding": "KV",
+			"id": "fafd8b43f4be4b1ba766caaa58ee928f"
+		}
+	]
+}
