@@ -15,6 +15,13 @@ export default class UserWorker extends WorkerEntrypoint {
 		return app.fetch(request, { kv: wrappedKV });
 	}
 
+	async handleRequest2(wrapKV: (kv: KVRPC) => Promise<KVNamespace>, request: Request): Promise<Response> {
+		using wrappedKV = await wrapKV(new KVRPC(env.KV))
+		//const kv = await fn(new KVRPC(env.KV));
+		const msg = await wrappedKV.get('joshkey');
+		return new Response(msg ?? 'null');
+	}
+
 	async fetch(): Promise<Response> {
 		return new Response('', { status: 404 });
 	}
@@ -22,6 +29,10 @@ export default class UserWorker extends WorkerEntrypoint {
 	async getKV() {
 		return new KVRPC(env.KV);
 	}
+}
+
+interface KVRPCService {
+	wrapKV: (namespace: KVRPC) => Promise<KVNamespace>;
 }
 
 // A simple hono app to get/put keys from KV

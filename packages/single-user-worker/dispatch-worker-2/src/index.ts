@@ -1,18 +1,11 @@
-import { env } from 'cloudflare:workers';
+import { env, RpcTarget } from 'cloudflare:workers';
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		try {
 			// TODO it would be nice to improve the typescript types here for RPC (remove 'any')
 			const userWorker = env.DISPATCHER.get('user-worker-2') as any;
-
-			// This is awkward: I had originally hoped to pass a function 
-			// that would accept the user worker's KV namespace, and return a "wrapped" version.
-			// BUT you can't pass a KV namespace as an RPC parameter!
-			// This workaround has the user worker expose the namespace via an RPC method instead
-			using rawKV = await userWorker.getKV();
-			const wrappedKV = wrapKV('user-worker-2', rawKV);
-			const resp = await userWorker.handleRequest(wrappedKV, request);
+			const resp = await userWorker.handleRequest2((kv: any) => wrapKV('user-worker-2', kv.dup()), request);
 			return resp;
 		} catch (e) {
 			return new Response(String(e), { status: 500 });
@@ -21,7 +14,7 @@ export default {
 } satisfies ExportedHandler<Env>;
 
 function wrapKV(namespaceID: string, namespace: KVNamespace) {
-	return {		
+	return {
 		get: async (key: string) => {
 			await enforceLimit(namespaceID);
 			const val = await namespace.get(key);
@@ -33,8 +26,7 @@ function wrapKV(namespaceID: string, namespace: KVNamespace) {
 			await namespace.put(key, val);
 			await emitUsageEvent(namespaceID, 'put', key);
 		},
-	
-	}
+	};
 }
 
 async function enforceLimit(namespaceID: string) {
