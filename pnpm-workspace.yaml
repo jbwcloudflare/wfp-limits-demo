@@ -2,3 +2,4 @@ packages:
   - "packages/two-user-workers/*"
   - "packages/single-user-worker/*"
   - "packages/limit-checker"
+  - "packages/dynamic-bindings/*"
