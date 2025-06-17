@@ -1,10 +1,5 @@
-import {
-  KvOperation,
-  KvOperationsResponse,
-  KvOperationsResponseSchema,
-} from "./schema";
+import { KvOperation, KvOperationsResponseSchema } from "./schemas/kv";
 import { env } from "node:process";
-import { z } from "zod";
 
 const graphqlEndpoint = "https://api.cloudflare.com/client/v4/graphql";
 const accountTag = env.CLOUDFLARE_ACCOUNT;
