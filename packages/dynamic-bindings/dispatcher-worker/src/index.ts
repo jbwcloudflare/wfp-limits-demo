@@ -1,17 +1,26 @@
 import { env, RpcTarget } from 'cloudflare:workers';
 
-interface KVNamespaceGroup {
+// Dynamic KV Namespaces
+interface KVNamespaces {
 	get: (name: string) => KVNamespace;
 }
 
-interface D1DatabaseGroup {
+// Dynamic D1 Databases
+interface D1Databases {
 	get: (name: string) => D1Database;
 }
 
+// Group of resources separated by type.
+// Each type provides a method to `get()` the resource by name
+interface ResourceGroup {
+	workers: DispatchNamespace;
+	kvNamespaces: KVNamespaces;
+	d1Databases: D1Databases;
+}
+
+// The top level bindings for the dispatcher worker
 interface Env {
-	WORKERS: DispatchNamespace;
-	KVS: KVNamespaceGroup;
-	D1S: D1DatabaseGroup;
+	RESOURCES: ResourceGroup;
 	USAGE: AnalyticsEngineDataset;
 }
 
@@ -25,7 +34,7 @@ export default {
 
 		// Load the worker and resources associated with the app:
 		// wrapping the KV and D1 bindings with usage enforcement
-		const userWorker = env.WORKERS.get(appName) as any;
+		const userWorker = env.RESOURCES.workers.get(appName) as any;
 		using userKV = new WrappedKVNamespace(appName, env);
 		using userD1 = new WrappedD1Database(appName, env);
 
@@ -38,7 +47,7 @@ class WrappedKVNamespace extends RpcTarget {
 	private namespace: KVNamespace;
 	constructor(private namespaceID: string, private env: Env) {
 		super();
-		this.namespace = env.KVS.get(namespaceID);
+		this.namespace = env.RESOURCES.kvNamespaces.get(namespaceID);
 	}
 	async get(key: string) {
 		await enforceLimit('kv', this.namespaceID);
@@ -57,7 +66,7 @@ class WrappedD1Database extends RpcTarget {
 	private database: D1Database;
 	constructor(private databaseName: string, private env: Env) {
 		super();
-		this.database = env.D1S.get(databaseName);
+		this.database = env.RESOURCES.d1Databases.get(databaseName);
 	}
 	async exec(args: Parameters<D1Database['exec']>) {
 		await enforceLimit('d1', this.databaseName);
