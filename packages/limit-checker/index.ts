@@ -13,6 +13,12 @@ import {
   R2Operation,
   R2Storage,
 } from "./graphql/r2";
+import {
+  D1Operation,
+  D1Storage,
+  paginateD1Operations,
+  paginateD1Storage,
+} from "./graphql/d1";
 
 const today = new Date().toLocaleDateString("en-CA");
 console.log(`Date: ${today}`);
@@ -26,7 +32,7 @@ const apiToken =
 const params: UsageQueryParams = {
   accountTag,
   apiToken,
-  limit: 100,
+  limit: 1000,
   startDate: today,
   endDate: today,
   graphqlEndpoint,
@@ -60,6 +66,22 @@ await paginateR2Storage((batch: BatchResult<R2Storage>) => {
   for (const operation of batch.data) {
     console.log(
       `[r2Storage] bucket ${operation.dimensions.bucketName}: ${operation.max.payloadSize} bytes ${operation.max.objectCount} objects`
+    );
+  }
+}, params);
+
+await paginateD1Operations((batch: BatchResult<D1Operation>) => {
+  for (const operation of batch.data) {
+    console.log(
+      `[d1Operations] db ${operation.dimensions.databaseId}: ${operation.sum.readQueries} read queries ${operation.sum.rowsRead} rowsRead`
+    );
+  }
+}, params);
+
+await paginateD1Storage((batch: BatchResult<D1Storage>) => {
+  for (const operation of batch.data) {
+    console.log(
+      `[d1Operations] db ${operation.dimensions.databaseId}: ${operation.max.databaseSizeBytes} bytes`
     );
   }
 }, params);
