@@ -1,124 +1,85 @@
-import { z } from "zod";
+import { ApolloClient, DocumentNode } from "@apollo/client/core";
 import {
-  BatchProcessor,
-  createOperationsResponseSchema,
-  createQuery,
-  executeQuery,
-  paginateQuery,
-  UsageQueryParams,
-} from "./shared";
+  KvActiveNamespacesQuery,
+  KvOperationsByCursorQuery,
+  KvOperationsByCursorQueryVariables,
+  KvStorageByCursorQuery,
+} from "./generated";
+import {
+  kvActiveNamespacesQuery,
+  kvOperationsByCursorQuery,
+  kvStorageByCursorQuery,
+} from "./queries/kv.queries";
+import { paginateQuery } from "./shared";
 
-const KvDimensionsSchema = z.object({
-  namespaceId: z.string(),
-});
-
-const KvOperationSumSchema = z.object({
-  requests: z.number(),
-  objectBytes: z.number(),
-});
-
-const KvOperationSchema = z.object({
-  dimensions: KvDimensionsSchema,
-  sum: KvOperationSumSchema,
-});
-
-export const KvOperationsResponseSchema = createOperationsResponseSchema(
-  KvOperationSchema,
-  "kvOperationsAdaptiveGroups"
-);
-
-export type KvOperation = z.infer<typeof KvOperationSchema>;
-export type KvOperationsResponse = z.infer<typeof KvOperationsResponseSchema>;
-
-export const kvOperationsQuery = createQuery(
-  "kvOperationsAdaptiveGroups",
-  "namespaceId",
-  "sum",
-  ["requests", "objectBytes"],
-  ["namespaceId"]
-);
-
-async function getKvOperations(
-  params: UsageQueryParams
-): Promise<KvOperation[]> {
-  return executeQuery({
-    endpoint: params.graphqlEndpoint,
-    apiToken: params.apiToken,
-    query: kvOperationsQuery,
+export async function paginateKvActiveNamespaces(
+  client: ApolloClient<any>,
+  accountTag: string,
+  startDate: string,
+  endDate: string,
+  batchProcessor: (data: KvActiveNamespacesQuery) => Promise<void> | void,
+  batchSize: number
+) {
+  await paginateQuery({
+    client,
+    query: kvActiveNamespacesQuery,
     variables: {
-      accountTag: params.accountTag,
-      startDate: params.startDate,
-      endDate: params.endDate,
-      limit: params.limit,
-      cursor: params.cursor,
+      accountTag,
+      startDate,
+      endDate,
     },
-    validator: (input) => KvOperationsResponseSchema.parse(input),
-    fieldName: "kvOperationsAdaptiveGroups",
+    batchProcessor,
+    getCursor: (data: KvActiveNamespacesQuery) =>
+      data.viewer?.accounts[0].kvOperationsAdaptiveGroups.at(-1)?.dimensions
+        ?.namespaceId ?? null,
+    batchSize,
   });
 }
 
 export async function paginateKvOperations(
-  processor: BatchProcessor<KvOperation>,
-  params: UsageQueryParams
-): Promise<void> {
-  const getCursor = (operation: KvOperation) =>
-    operation.dimensions.namespaceId;
-  return paginateQuery(
-    "kvOperations",
-    getKvOperations,
-    getCursor,
-    processor,
-    params
-  );
-}
-
-const KvStorageMaxSchema = z.object({
-  keyCount: z.number(),
-  byteCount: z.number(),
-});
-
-const KvStorageSchema = z.object({
-  dimensions: KvDimensionsSchema,
-  max: KvStorageMaxSchema,
-});
-
-export const KvStorageResponseSchema = createOperationsResponseSchema(
-  KvStorageSchema,
-  "kvStorageAdaptiveGroups"
-);
-
-export type KvStorage = z.infer<typeof KvStorageSchema>;
-export type KvStorageResponse = z.infer<typeof KvStorageResponseSchema>;
-
-export const kvStorageQuery = createQuery(
-  "kvStorageAdaptiveGroups",
-  "namespaceId",
-  "max",
-  ["keyCount", "byteCount"],
-  ["namespaceId"]
-);
-
-async function getKvStorage(params: UsageQueryParams): Promise<KvStorage[]> {
-  return executeQuery({
-    endpoint: params.graphqlEndpoint,
-    apiToken: params.apiToken,
-    query: kvStorageQuery,
+  client: ApolloClient<any>,
+  accountTag: string,
+  startDate: string,
+  endDate: string,
+  batchProcessor: (data: KvOperationsByCursorQuery) => Promise<void> | void,
+  batchSize: number
+) {
+  await paginateQuery({
+    client,
+    query: kvOperationsByCursorQuery,
     variables: {
-      accountTag: params.accountTag,
-      startDate: params.startDate,
-      endDate: params.endDate,
-      limit: params.limit,
-      cursor: params.cursor,
+      accountTag,
+      startDate,
+      endDate,
     },
-    validator: (input) => KvStorageResponseSchema.parse(input),
-    fieldName: "kvStorageAdaptiveGroups",
+    batchProcessor,
+    getCursor: (data: KvOperationsByCursorQuery) =>
+      data.viewer?.accounts[0].kvOperationsAdaptiveGroups.at(-1)?.dimensions
+        ?.namespaceId ?? null,
+    batchSize,
   });
 }
 
 export async function paginateKvStorage(
-  processor: BatchProcessor<KvStorage>,
-  params: UsageQueryParams
-): Promise<void> {
-  const getCursor = (storage: KvStorage) => storage.dimensions.namespaceId;
-  return paginateQuery("kvStorage", getKvStorage, getCursor, processor, params);
+  client: ApolloClient<any>,
+  accountTag: string,
+  startDate: string,
+  endDate: string,
+  batchProcessor: (data: KvStorageByCursorQuery) => Promise<void> | void,
+  batchSize: number
+) {
+  await paginateQuery({
+    client,
+    query: kvStorageByCursorQuery,
+    variables: {
+      accountTag,
+      startDate,
+      endDate,
+    },
+    batchProcessor,
+    getCursor: (data: KvStorageByCursorQuery) =>
+      data.viewer?.accounts[0].kvStorageAdaptiveGroups.at(-1)?.dimensions
+        ?.namespaceId || null,
+    batchSize,
+  });
 }

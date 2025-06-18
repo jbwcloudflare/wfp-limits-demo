@@ -1,133 +1,85 @@
-import { z } from "zod";
+import { ApolloClient, DocumentNode } from "@apollo/client/core";
 import {
-  BatchProcessor,
-  createOperationsResponseSchema,
-  createQuery,
-  executeQuery,
-  paginateQuery,
-  UsageQueryParams,
-} from "./shared";
+  D1ActiveDatabasesQuery,
+  D1OperationsByCursorQuery,
+  D1OperationsByCursorQueryVariables,
+  D1StorageByCursorQuery,
+} from "./generated";
+import {
+  d1ActiveDatabasesQuery,
+  d1OperationsByCursorQuery,
+  d1StorageByCursorQuery,
+} from "./queries/d1.queries";
+import { paginateQuery } from "./shared";
 
-// D1 Operations (Analytics)
-const D1DimensionsSchema = z.object({
-  databaseId: z.string(),
-});
-
-const D1OperationSumSchema = z.object({
-  queryBatchResponseBytes: z.number(),
-  readQueries: z.number(),
-  rowsRead: z.number(),
-  rowsWritten: z.number(),
-  writeQueries: z.number(),
-});
-
-const D1OperationSchema = z.object({
-  dimensions: D1DimensionsSchema,
-  sum: D1OperationSumSchema,
-});
-
-export const D1OperationsResponseSchema = createOperationsResponseSchema(
-  D1OperationSchema,
-  "d1AnalyticsAdaptiveGroups"
-);
-
-export type D1Operation = z.infer<typeof D1OperationSchema>;
-export type D1OperationsResponse = z.infer<typeof D1OperationsResponseSchema>;
-
-export const d1OperationsQuery = createQuery(
-  "d1AnalyticsAdaptiveGroups",
-  "databaseId",
-  "sum",
-  [
-    "queryBatchResponseBytes",
-    "readQueries",
-    "rowsRead",
-    "rowsWritten",
-    "writeQueries",
-  ],
-  ["databaseId"]
-);
-
-async function getD1Operations(
-  params: UsageQueryParams
-): Promise<D1Operation[]> {
-  return executeQuery({
-    endpoint: params.graphqlEndpoint,
-    apiToken: params.apiToken,
-    query: d1OperationsQuery,
+export async function paginateD1ActiveDatabases(
+  client: ApolloClient<any>,
+  accountTag: string,
+  startDate: string,
+  endDate: string,
+  batchProcessor: (data: D1ActiveDatabasesQuery) => Promise<void> | void,
+  batchSize: number
+) {
+  await paginateQuery({
+    client,
+    query: d1ActiveDatabasesQuery,
     variables: {
-      accountTag: params.accountTag,
-      startDate: params.startDate,
-      endDate: params.endDate,
-      limit: params.limit,
-      cursor: params.cursor,
+      accountTag,
+      startDate,
+      endDate,
     },
-    validator: (input) => D1OperationsResponseSchema.parse(input),
-    fieldName: "d1AnalyticsAdaptiveGroups",
+    batchProcessor,
+    getCursor: (data: D1ActiveDatabasesQuery) =>
+      data.viewer?.accounts[0].d1AnalyticsAdaptiveGroups.at(-1)?.dimensions
+        ?.databaseId ?? null,
+    batchSize,
   });
 }
 
 export async function paginateD1Operations(
-  processor: BatchProcessor<D1Operation>,
-  params: UsageQueryParams
-): Promise<void> {
-  const getCursor = (operation: D1Operation) => operation.dimensions.databaseId;
-  return paginateQuery(
-    "d1Operations",
-    getD1Operations,
-    getCursor,
-    processor,
-    params
-  );
-}
-
-// D1 Storage
-const D1StorageMaxSchema = z.object({
-  databaseSizeBytes: z.number(),
-});
-
-const D1StorageSchema = z.object({
-  dimensions: D1DimensionsSchema,
-  max: D1StorageMaxSchema,
-});
-
-export const D1StorageResponseSchema = createOperationsResponseSchema(
-  D1StorageSchema,
-  "d1StorageAdaptiveGroups"
-);
-
-export type D1Storage = z.infer<typeof D1StorageSchema>;
-export type D1StorageResponse = z.infer<typeof D1StorageResponseSchema>;
-
-export const d1StorageQuery = createQuery(
-  "d1StorageAdaptiveGroups",
-  "databaseId",
-  "max",
-  ["databaseSizeBytes"],
-  ["databaseId"]
-);
-
-async function getD1Storage(params: UsageQueryParams): Promise<D1Storage[]> {
-  return executeQuery({
-    endpoint: params.graphqlEndpoint,
-    apiToken: params.apiToken,
-    query: d1StorageQuery,
+  client: ApolloClient<any>,
+  accountTag: string,
+  startDate: string,
+  endDate: string,
+  batchProcessor: (data: D1OperationsByCursorQuery) => Promise<void> | void,
+  batchSize: number
+) {
+  await paginateQuery({
+    client,
+    query: d1OperationsByCursorQuery,
     variables: {
-      accountTag: params.accountTag,
-      startDate: params.startDate,
-      endDate: params.endDate,
-      limit: params.limit,
-      cursor: params.cursor,
+      accountTag,
+      startDate,
+      endDate,
     },
-    validator: (input) => D1StorageResponseSchema.parse(input),
-    fieldName: "d1StorageAdaptiveGroups",
+    batchProcessor,
+    getCursor: (data: D1OperationsByCursorQuery) =>
+      data.viewer?.accounts[0].d1AnalyticsAdaptiveGroups.at(-1)?.dimensions
+        ?.databaseId ?? null,
+    batchSize,
   });
 }
 
 export async function paginateD1Storage(
-  processor: BatchProcessor<D1Storage>,
-  params: UsageQueryParams
-): Promise<void> {
-  const getCursor = (storage: D1Storage) => storage.dimensions.databaseId;
-  return paginateQuery("d1Storage", getD1Storage, getCursor, processor, params);
+  client: ApolloClient<any>,
+  accountTag: string,
+  startDate: string,
+  endDate: string,
+  batchProcessor: (data: D1StorageByCursorQuery) => Promise<void> | void,
+  batchSize: number
+) {
+  await paginateQuery({
+    client,
+    query: d1StorageByCursorQuery,
+    variables: {
+      accountTag,
+      startDate,
+      endDate,
+    },
+    batchProcessor,
+    getCursor: (data: D1StorageByCursorQuery) =>
+      data.viewer?.accounts[0].d1StorageAdaptiveGroups.at(-1)?.dimensions
+        ?.databaseId || null,
+    batchSize,
+  });
 }

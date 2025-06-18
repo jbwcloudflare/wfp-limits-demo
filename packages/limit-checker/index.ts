@@ -1,87 +1,380 @@
 import { env } from "node:process";
-import { throwError } from "./utils";
-import { BatchResult, UsageQueryParams } from "./graphql/shared";
+import { throwError as error } from "./utils";
 import {
-  KvOperation,
-  KvStorage,
+  paginateD1ActiveDatabases,
+  paginateD1Operations,
+  paginateD1Storage,
+} from "./graphql/d1";
+import {
+  D1ActiveDatabasesQuery,
+  D1OperationsByCursorQuery,
+  D1OperationsByIdQuery,
+  D1OperationsByIdQueryVariables,
+  D1StorageByCursorQuery,
+  D1StorageByIdQuery,
+  D1StorageByIdQueryVariables,
+  KvActiveNamespacesQuery,
+  KvOperationsByCursorQuery,
+  KvOperationsByIdQuery,
+  KvOperationsByIdQueryVariables,
+  KvStorageByCursorQuery,
+  KvStorageByIdQuery,
+  KvStorageByIdQueryVariables,
+  R2ActiveBucketsQuery,
+  R2OperationsByCursorQuery,
+  R2OperationsByIdQuery,
+  R2OperationsByIdQueryVariables,
+  R2StorageByCursorQuery,
+  R2StorageByIdQuery,
+  R2StorageByIdQueryVariables,
+} from "./graphql/generated";
+import { getApolloClient } from "./graphql/client";
+import {
+  paginateKvActiveNamespaces,
   paginateKvOperations,
   paginateKvStorage,
 } from "./graphql/kv";
 import {
+  kvOperationsByIdsQuery,
+  kvStorageByIdsQuery,
+} from "./graphql/queries/kv.queries";
+import {
+  paginateR2ActiveBuckets,
   paginateR2Operations,
   paginateR2Storage,
-  R2Operation,
-  R2Storage,
 } from "./graphql/r2";
 import {
-  D1Operation,
-  D1Storage,
-  paginateD1Operations,
-  paginateD1Storage,
-} from "./graphql/d1";
+  r2OperationsByIdsQuery,
+  r2StorageByIdsQuery,
+} from "./graphql/queries/r2.queries";
+import {
+  d1OperationsByIdsQuery,
+  d1StorageByIdsQuery,
+} from "./graphql/queries/d1.queries";
 
-const today = new Date().toLocaleDateString("en-CA");
-console.log(`Date: ${today}`);
+const account = env.CLOUDFLARE_ACCOUNT ?? error("missing CLOUDFLARE_ACCOUNT");
+const startDate = new Date(Date.now() - 3 * 86000000).toLocaleDateString(
+  "en-ca"
+);
+const endDate = new Date().toLocaleDateString("en-ca");
+const batchSize = 3;
 
-const graphqlEndpoint = "https://api.cloudflare.com/client/v4/graphql";
-const accountTag =
-  env.CLOUDFLARE_ACCOUNT ?? throwError("missing CLOUDLFARE_ACCOUNT");
-const apiToken =
-  env.CLOUDFLARE_API_TOKEN ?? throwError("missing CLOUDFLARE_API_TOKEN");
+const client = getApolloClient();
 
-const params: UsageQueryParams = {
-  accountTag,
-  apiToken,
-  limit: 1000,
-  startDate: today,
-  endDate: today,
-  graphqlEndpoint,
-};
+async function fullScan() {
+  // KV
+  await paginateKvOperations(
+    client,
+    account,
+    startDate,
+    endDate,
+    async (data: KvOperationsByCursorQuery) => {
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      for (const group of groups.kvOperationsAdaptiveGroups) {
+        console.log(
+          `KV operations ${group.dimensions?.namespaceId}: ${JSON.stringify(
+            group.sum
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
 
-await paginateKvOperations((batch: BatchResult<KvOperation>) => {
-  for (const operation of batch.data) {
-    console.log(
-      `[kvOperations] namespace ${operation.dimensions.namespaceId}: ${operation.sum.requests} requests`
-    );
-  }
-}, params);
+  await paginateKvStorage(
+    client,
+    account,
+    startDate,
+    endDate,
+    async (data: KvStorageByCursorQuery) => {
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      for (const group of groups.kvStorageAdaptiveGroups) {
+        console.log(
+          `KV storage ${group.dimensions?.namespaceId}: ${JSON.stringify(
+            group.max
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
 
-await paginateKvStorage((batch: BatchResult<KvStorage>) => {
-  for (const operation of batch.data) {
-    console.log(
-      `[kvStorage] namespace ${operation.dimensions.namespaceId}: ${operation.max.byteCount} bytes ${operation.max.keyCount} keys`
-    );
-  }
-}, params);
+  // R2
+  await paginateR2Operations(
+    client,
+    account,
+    startDate,
+    endDate,
+    async (data: R2OperationsByCursorQuery) => {
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      for (const group of groups.r2OperationsAdaptiveGroups) {
+        console.log(
+          `R2 operations ${group.dimensions?.bucketName}: ${JSON.stringify(
+            group.sum
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
 
-await paginateR2Operations((batch: BatchResult<R2Operation>) => {
-  for (const operation of batch.data) {
-    console.log(
-      `[r2Operations] bucket ${operation.dimensions.bucketName}: ${operation.sum.requests} requests`
-    );
-  }
-}, params);
+  await paginateR2Storage(
+    client,
+    account,
+    startDate,
+    endDate,
+    async (data: R2StorageByCursorQuery) => {
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      for (const group of groups.r2StorageAdaptiveGroups) {
+        console.log(
+          `R2 storage ${group.dimensions?.bucketName}: ${JSON.stringify(
+            group.max
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
 
-await paginateR2Storage((batch: BatchResult<R2Storage>) => {
-  for (const operation of batch.data) {
-    console.log(
-      `[r2Storage] bucket ${operation.dimensions.bucketName}: ${operation.max.payloadSize} bytes ${operation.max.objectCount} objects`
-    );
-  }
-}, params);
+  // D1
+  await paginateD1Operations(
+    client,
+    account,
+    startDate,
+    endDate,
+    async (data: D1OperationsByCursorQuery) => {
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      for (const group of groups.d1AnalyticsAdaptiveGroups) {
+        console.log(
+          `D1 operations ${group.dimensions?.databaseId}: ${JSON.stringify(
+            group.sum
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
 
-await paginateD1Operations((batch: BatchResult<D1Operation>) => {
-  for (const operation of batch.data) {
-    console.log(
-      `[d1Operations] db ${operation.dimensions.databaseId}: ${operation.sum.readQueries} read queries ${operation.sum.rowsRead} rowsRead`
-    );
-  }
-}, params);
+  await paginateD1Storage(
+    client,
+    account,
+    startDate,
+    endDate,
+    async (data: D1StorageByCursorQuery) => {
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      for (const group of groups.d1StorageAdaptiveGroups) {
+        console.log(
+          `D1 storage ${group.dimensions?.databaseId}: ${JSON.stringify(
+            group.max
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
+}
 
-await paginateD1Storage((batch: BatchResult<D1Storage>) => {
-  for (const operation of batch.data) {
-    console.log(
-      `[d1Operations] db ${operation.dimensions.databaseId}: ${operation.max.databaseSizeBytes} bytes`
-    );
-  }
-}, params);
+async function activeOnly() {
+  // KV
+  await paginateKvActiveNamespaces(
+    client,
+    account,
+    startDate,
+    endDate,
+    async (data: KvActiveNamespacesQuery) => {
+      // Extract namespaceIds
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      const namespaceIds = groups.kvOperationsAdaptiveGroups.map(
+        (x) => x.dimensions?.namespaceId ?? error("missing namespaceId")
+      );
+      console.log(`Checking ${namespaceIds.length} namespaces`);
+
+      // Check operations for the active namespaces
+      const operations = await client.query<
+        KvOperationsByIdQuery,
+        KvOperationsByIdQueryVariables
+      >({
+        query: kvOperationsByIdsQuery,
+        variables: {
+          accountTag: account,
+          startDate: startDate,
+          endDate: endDate,
+          resourceIds: namespaceIds,
+        },
+      });
+
+      const operationsByNamespace =
+        operations.data.viewer?.accounts.at(0) ?? error("missing groups");
+
+      for (const group of operationsByNamespace.kvOperationsAdaptiveGroups) {
+        console.log(
+          `KV operations ${group.dimensions?.namespaceId}: ${JSON.stringify(
+            group.sum
+          )}`
+        );
+      }
+
+      // Check storage for the active namespaces
+      const storage = await client.query<
+        KvStorageByIdQuery,
+        KvStorageByIdQueryVariables
+      >({
+        query: kvStorageByIdsQuery,
+        variables: {
+          accountTag: account,
+          startDate: startDate,
+          endDate: endDate,
+          resourceIds: namespaceIds,
+        },
+      });
+
+      const storageByNamespace =
+        storage.data.viewer?.accounts.at(0) ?? error("missing groups");
+
+      for (const group of storageByNamespace.kvStorageAdaptiveGroups) {
+        console.log(
+          `KV storage ${group.dimensions?.namespaceId}: ${JSON.stringify(
+            group.max
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
+
+  // R2
+  await paginateR2ActiveBuckets(
+    client,
+    account,
+    startDate,
+    endDate,
+    async (data: R2ActiveBucketsQuery) => {
+      // Extract bucketNames
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      const bucketNames = groups.r2OperationsAdaptiveGroups.map(
+        (x) => x.dimensions?.bucketName ?? error("missing bucketName")
+      );
+      console.log(`Checking ${bucketNames.length} buckets`);
+
+      // Check operations for the active buckets
+      const operations = await client.query<
+        R2OperationsByIdQuery,
+        R2OperationsByIdQueryVariables
+      >({
+        query: r2OperationsByIdsQuery,
+        variables: {
+          accountTag: account,
+          startDate: startDate,
+          endDate: endDate,
+          resourceIds: bucketNames,
+        },
+      });
+
+      const operationsByBucket =
+        operations.data.viewer?.accounts.at(0) ?? error("missing groups");
+
+      for (const group of operationsByBucket.r2OperationsAdaptiveGroups) {
+        console.log(
+          `R2 operations ${group.dimensions?.bucketName}: ${JSON.stringify(
+            group.sum
+          )}`
+        );
+      }
+
+      // Check storage for the active buckets
+      const storage = await client.query<
+        R2StorageByIdQuery,
+        R2StorageByIdQueryVariables
+      >({
+        query: r2StorageByIdsQuery,
+        variables: {
+          accountTag: account,
+          startDate: startDate,
+          endDate: endDate,
+          resourceIds: bucketNames,
+        },
+      });
+
+      const storageByBucket =
+        storage.data.viewer?.accounts.at(0) ?? error("missing groups");
+
+      for (const group of storageByBucket.r2StorageAdaptiveGroups) {
+        console.log(
+          `R2 storage ${group.dimensions?.bucketName}: ${JSON.stringify(
+            group.max
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
+
+  // D1
+  await paginateD1ActiveDatabases(
+    client,
+    account,
+    startDate,
+    endDate,
+    async (data: D1ActiveDatabasesQuery) => {
+      // Extract databaseIds
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      const databaseIds = groups.d1AnalyticsAdaptiveGroups.map(
+        (x) => x.dimensions?.databaseId ?? error("missing databaseId")
+      );
+      console.log(`Checking ${databaseIds.length} databases`);
+
+      // Check operations for the active databases
+      const operations = await client.query<
+        D1OperationsByIdQuery,
+        D1OperationsByIdQueryVariables
+      >({
+        query: d1OperationsByIdsQuery,
+        variables: {
+          accountTag: account,
+          startDate: startDate,
+          endDate: endDate,
+          resourceIds: databaseIds,
+        },
+      });
+
+      const operationsByDatabase =
+        operations.data.viewer?.accounts.at(0) ?? error("missing groups");
+
+      for (const group of operationsByDatabase.d1AnalyticsAdaptiveGroups) {
+        console.log(
+          `D1 operations ${group.dimensions?.databaseId}: ${JSON.stringify(
+            group.sum
+          )}`
+        );
+      }
+
+      // Check storage for the active databases
+      const storage = await client.query<
+        D1StorageByIdQuery,
+        D1StorageByIdQueryVariables
+      >({
+        query: d1StorageByIdsQuery,
+        variables: {
+          accountTag: account,
+          startDate: startDate,
+          endDate: endDate,
+          resourceIds: databaseIds,
+        },
+      });
+
+      const storageByDatabase =
+        storage.data.viewer?.accounts.at(0) ?? error("missing groups");
+
+      for (const group of storageByDatabase.d1StorageAdaptiveGroups) {
+        console.log(
+          `D1 storage ${group.dimensions?.databaseId}: ${JSON.stringify(
+            group.max
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
+}
+
+await fullScan();

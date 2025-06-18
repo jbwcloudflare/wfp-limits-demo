@@ -5,14 +5,25 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "analyze": "esbuild index.ts --bundle --format=esm --platform=node --target=node18 --outfile=dist/index.js && node dist/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@apollo/client": "^3.13.8",
     "@types/node": "^24.0.3",
+    "esbuild": "^0.25.5",
+    "graphql": "^16.11.0",
+    "graphql-request": "^7.2.0",
+    "graphql-tag": "^2.12.6",
     "tsx": "^4.20.3",
     "zod": "^3.25.64"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^5.0.7",
+    "@graphql-codegen/typescript": "^4.1.6",
+    "@graphql-codegen/typescript-apollo-client-helpers": "^3.0.1",
+    "@graphql-codegen/typescript-operations": "^4.6.1"
   }
 }
