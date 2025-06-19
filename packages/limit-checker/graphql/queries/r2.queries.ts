@@ -3,8 +3,8 @@ import { gql } from "graphql-tag";
 export const r2ActiveBucketsQuery = gql`
   query R2ActiveBuckets(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $cursor: string!
     $limit: uint64!
   ) {
@@ -12,8 +12,8 @@ export const r2ActiveBucketsQuery = gql`
       accounts(filter: { accountTag: $accountTag }) {
         r2OperationsAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetime_geq: $startDate
+            datetime_leq: $endDate
             bucketName_gt: $cursor
           }
           limit: $limit
@@ -31,16 +31,16 @@ export const r2ActiveBucketsQuery = gql`
 export const r2OperationsByIdsQuery = gql`
   query R2OperationsById(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $resourceIds: [string!]!
   ) {
     viewer {
       accounts(filter: { accountTag: $accountTag }) {
         r2OperationsAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetime_geq: $startDate
+            datetime_leq: $endDate
             bucketName_in: $resourceIds
           }
           limit: 10000
@@ -63,8 +63,8 @@ export const r2OperationsByIdsQuery = gql`
 export const r2OperationsByCursorQuery = gql`
   query R2OperationsByCursor(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $cursor: string!
     $limit: uint64!
   ) {
@@ -72,8 +72,8 @@ export const r2OperationsByCursorQuery = gql`
       accounts(filter: { accountTag: $accountTag }) {
         r2OperationsAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetime_geq: $startDate
+            datetime_leq: $endDate
             bucketName_gt: $cursor
           }
           limit: $limit
@@ -96,16 +96,16 @@ export const r2OperationsByCursorQuery = gql`
 export const r2StorageByIdsQuery = gql`
   query R2StorageById(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $resourceIds: [string!]!
   ) {
     viewer {
       accounts(filter: { accountTag: $accountTag }) {
         r2StorageAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetime_geq: $startDate
+            datetime_leq: $endDate
             bucketName_in: $resourceIds
           }
           limit: 10000
@@ -129,8 +129,8 @@ export const r2StorageByIdsQuery = gql`
 export const r2StorageByCursorQuery = gql`
   query R2StorageByCursor(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $limit: uint64!
     $cursor: string
   ) {
@@ -138,8 +138,8 @@ export const r2StorageByCursorQuery = gql`
       accounts(filter: { accountTag: $accountTag }) {
         r2StorageAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetime_geq: $startDate
+            datetime_leq: $endDate
             bucketName_gt: $cursor
           }
           limit: $limit

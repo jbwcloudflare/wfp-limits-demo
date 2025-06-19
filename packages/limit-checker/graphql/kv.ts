@@ -3,15 +3,146 @@ import {
   KvActiveNamespacesQuery,
   KvOperationsByCursorQuery,
   KvOperationsByCursorQueryVariables,
+  KvOperationsByIdQuery,
+  KvOperationsByIdQueryVariables,
   KvStorageByCursorQuery,
+  KvStorageByIdQuery,
+  KvStorageByIdQueryVariables,
 } from "./generated";
 import {
   kvActiveNamespacesQuery,
   kvOperationsByCursorQuery,
+  kvOperationsByIdsQuery,
   kvStorageByCursorQuery,
+  kvStorageByIdsQuery,
 } from "./queries/kv.queries";
 import { paginateQuery } from "./shared";
+import { error } from "../utils";
 
+/**
+ * Do a full scan over all KV namespaces, for both the Operation and Storage dataset
+ */
+export async function fullScanKv(
+  client: ApolloClient<any>,
+  account: string,
+  startDate: string,
+  endDate: string,
+  batchSize: number
+) {
+  await paginateKvOperations(
+    client,
+    account,
+    startDate,
+    endDate,
+    async (data: KvOperationsByCursorQuery) => {
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      for (const group of groups.kvOperationsAdaptiveGroups) {
+        console.log(
+          `KV operations ${group.dimensions?.namespaceId}: ${JSON.stringify(
+            group.sum
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
+  await paginateKvStorage(
+    client,
+    account,
+    startDate,
+    endDate,
+    async (data: KvStorageByCursorQuery) => {
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      for (const group of groups.kvStorageAdaptiveGroups) {
+        console.log(
+          `KV storage ${group.dimensions?.namespaceId}: ${JSON.stringify(
+            group.max
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
+}
+
+/**
+ * First search for active namespaces and then compute their full usage between startDate and endDate
+ */
+export async function activeOnlyKv(
+  client: ApolloClient<any>,
+  account: string,
+  activeStartDate: string,
+  activeEndDate: string,
+  usageStartDate: string,
+  usageEndDate: string,
+  batchSize: number
+) {
+  await paginateKvActiveNamespaces(
+    client,
+    account,
+    activeStartDate,
+    activeEndDate,
+    async (data: KvActiveNamespacesQuery) => {
+      // Extract namespaceIds
+      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
+      const namespaceIds = groups.kvOperationsAdaptiveGroups.map(
+        (x) => x.dimensions?.namespaceId ?? error("missing namespaceId")
+      );
+      console.log(`Checking ${namespaceIds.length} namespaces`);
+
+      // Check operations for the active namespaces
+      const operations = await client.query<
+        KvOperationsByIdQuery,
+        KvOperationsByIdQueryVariables
+      >({
+        query: kvOperationsByIdsQuery,
+        variables: {
+          accountTag: account,
+          startDate: usageStartDate,
+          endDate: usageEndDate,
+          resourceIds: namespaceIds,
+        },
+      });
+
+      const operationsByNamespace =
+        operations.data.viewer?.accounts.at(0) ?? error("missing groups");
+
+      for (const group of operationsByNamespace.kvOperationsAdaptiveGroups) {
+        console.log(
+          `KV operations ${group.dimensions?.namespaceId}: ${JSON.stringify(
+            group.sum
+          )}`
+        );
+      }
+
+      // Check storage for the active namespaces
+      const storage = await client.query<
+        KvStorageByIdQuery,
+        KvStorageByIdQueryVariables
+      >({
+        query: kvStorageByIdsQuery,
+        variables: {
+          accountTag: account,
+          startDate: usageStartDate,
+          endDate: usageEndDate,
+          resourceIds: namespaceIds,
+        },
+      });
+
+      const storageByNamespace =
+        storage.data.viewer?.accounts.at(0) ?? error("missing groups");
+
+      for (const group of storageByNamespace.kvStorageAdaptiveGroups) {
+        console.log(
+          `KV storage ${group.dimensions?.namespaceId}: ${JSON.stringify(
+            group.max
+          )}`
+        );
+      }
+    },
+    batchSize
+  );
+}
 export async function paginateKvActiveNamespaces(
   client: ApolloClient<any>,
   accountTag: string,

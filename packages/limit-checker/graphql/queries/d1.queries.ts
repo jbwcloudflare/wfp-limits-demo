@@ -3,8 +3,8 @@ import { gql } from "graphql-tag";
 export const d1ActiveDatabasesQuery = gql`
   query D1ActiveDatabases(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $cursor: string!
     $limit: uint64!
   ) {
@@ -12,8 +12,8 @@ export const d1ActiveDatabasesQuery = gql`
       accounts(filter: { accountTag: $accountTag }) {
         d1AnalyticsAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetimeHour_geq: $startDate
+            datetimeHour_leq: $endDate
             databaseId_gt: $cursor
           }
           limit: $limit
@@ -31,16 +31,16 @@ export const d1ActiveDatabasesQuery = gql`
 export const d1OperationsByIdsQuery = gql`
   query D1OperationsById(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $resourceIds: [string!]!
   ) {
     viewer {
       accounts(filter: { accountTag: $accountTag }) {
         d1AnalyticsAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetimeHour_geq: $startDate
+            datetimeHour_leq: $endDate
             databaseId_in: $resourceIds
           }
           limit: 10000
@@ -65,8 +65,8 @@ export const d1OperationsByIdsQuery = gql`
 export const d1OperationsByCursorQuery = gql`
   query D1OperationsByCursor(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $cursor: string!
     $limit: uint64!
   ) {
@@ -74,8 +74,8 @@ export const d1OperationsByCursorQuery = gql`
       accounts(filter: { accountTag: $accountTag }) {
         d1AnalyticsAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetimeHour_geq: $startDate
+            datetimeHour_leq: $endDate
             databaseId_gt: $cursor
           }
           limit: $limit
@@ -100,16 +100,16 @@ export const d1OperationsByCursorQuery = gql`
 export const d1StorageByIdsQuery = gql`
   query D1StorageById(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $resourceIds: [string!]!
   ) {
     viewer {
       accounts(filter: { accountTag: $accountTag }) {
         d1StorageAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetimeHour_geq: $startDate
+            datetimeHour_leq: $endDate
             databaseId_in: $resourceIds
           }
           limit: 10000
@@ -130,8 +130,8 @@ export const d1StorageByIdsQuery = gql`
 export const d1StorageByCursorQuery = gql`
   query D1StorageByCursor(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $limit: uint64!
     $cursor: string
   ) {
@@ -139,8 +139,8 @@ export const d1StorageByCursorQuery = gql`
       accounts(filter: { accountTag: $accountTag }) {
         d1StorageAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetimeHour_geq: $startDate
+            datetimeHour_leq: $endDate
             databaseId_gt: $cursor
           }
           limit: $limit

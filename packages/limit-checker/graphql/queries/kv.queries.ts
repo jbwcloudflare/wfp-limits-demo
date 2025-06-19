@@ -3,8 +3,8 @@ import { gql } from "graphql-tag";
 export const kvActiveNamespacesQuery = gql`
   query KvActiveNamespaces(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $cursor: string!
     $limit: uint64!
   ) {
@@ -12,8 +12,8 @@ export const kvActiveNamespacesQuery = gql`
       accounts(filter: { accountTag: $accountTag }) {
         kvOperationsAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetime_geq: $startDate
+            datetime_leq: $endDate
             namespaceId_gt: $cursor
           }
           limit: $limit
@@ -31,16 +31,16 @@ export const kvActiveNamespacesQuery = gql`
 export const kvOperationsByIdsQuery = gql`
   query KvOperationsById(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $resourceIds: [string!]!
   ) {
     viewer {
       accounts(filter: { accountTag: $accountTag }) {
         kvOperationsAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetime_geq: $startDate
+            datetime_leq: $endDate
             namespaceId_in: $resourceIds
           }
           limit: 10000
@@ -62,8 +62,8 @@ export const kvOperationsByIdsQuery = gql`
 export const kvOperationsByCursorQuery = gql`
   query kvOperationsByCursor(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $cursor: string!
     $limit: uint64!
   ) {
@@ -71,8 +71,8 @@ export const kvOperationsByCursorQuery = gql`
       accounts(filter: { accountTag: $accountTag }) {
         kvOperationsAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetime_geq: $startDate
+            datetime_leq: $endDate
             namespaceId_gt: $cursor
           }
           limit: $limit
@@ -94,16 +94,16 @@ export const kvOperationsByCursorQuery = gql`
 export const kvStorageByIdsQuery = gql`
   query KvStorageById(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $resourceIds: [string!]!
   ) {
     viewer {
       accounts(filter: { accountTag: $accountTag }) {
         kvStorageAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetime_geq: $startDate
+            datetime_leq: $endDate
             namespaceId_in: $resourceIds
           }
           limit: 10000
@@ -125,8 +125,8 @@ export const kvStorageByIdsQuery = gql`
 export const kvStorageByCursorQuery = gql`
   query kvStorageByCursor(
     $accountTag: string!
-    $startDate: Date!
-    $endDate: Date!
+    $startDate: Time!
+    $endDate: Time!
     $limit: uint64!
     $cursor: string
   ) {
@@ -134,8 +134,8 @@ export const kvStorageByCursorQuery = gql`
       accounts(filter: { accountTag: $accountTag }) {
         kvStorageAdaptiveGroups(
           filter: {
-            date_geq: $startDate
-            date_leq: $endDate
+            datetime_geq: $startDate
+            datetime_leq: $endDate
             namespaceId_gt: $cursor
           }
           limit: $limit

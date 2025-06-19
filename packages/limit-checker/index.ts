@@ -1,5 +1,5 @@
 import { env } from "node:process";
-import { throwError as error } from "./utils";
+import { error } from "./utils";
 import {
   paginateD1ActiveDatabases,
   paginateD1Operations,
@@ -30,6 +30,8 @@ import {
 } from "./graphql/generated";
 import { getApolloClient } from "./graphql/client";
 import {
+  activeOnlyKv,
+  fullScanKv,
   paginateKvActiveNamespaces,
   paginateKvOperations,
   paginateKvStorage,
@@ -51,60 +53,27 @@ import {
   d1OperationsByIdsQuery,
   d1StorageByIdsQuery,
 } from "./graphql/queries/d1.queries";
+import { ms } from "itty-time";
 
 const account = env.CLOUDFLARE_ACCOUNT ?? error("missing CLOUDFLARE_ACCOUNT");
-const startDate = new Date(Date.now() - 3 * 86000000).toLocaleDateString(
-  "en-ca"
-);
-const endDate = new Date().toLocaleDateString("en-ca");
+
+const activeStartDate = new Date(Date.now() - ms("30 minutes")).toISOString();
+const activeEndDate = new Date().toISOString();
+const usageStartDate = new Date(Date.now() - ms("3 days")).toISOString();
+const usageEndDate = new Date().toISOString();
 const batchSize = 3;
 
 const client = getApolloClient();
 
 async function fullScan() {
-  // KV
-  await paginateKvOperations(
-    client,
-    account,
-    startDate,
-    endDate,
-    async (data: KvOperationsByCursorQuery) => {
-      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
-      for (const group of groups.kvOperationsAdaptiveGroups) {
-        console.log(
-          `KV operations ${group.dimensions?.namespaceId}: ${JSON.stringify(
-            group.sum
-          )}`
-        );
-      }
-    },
-    batchSize
-  );
-
-  await paginateKvStorage(
-    client,
-    account,
-    startDate,
-    endDate,
-    async (data: KvStorageByCursorQuery) => {
-      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
-      for (const group of groups.kvStorageAdaptiveGroups) {
-        console.log(
-          `KV storage ${group.dimensions?.namespaceId}: ${JSON.stringify(
-            group.max
-          )}`
-        );
-      }
-    },
-    batchSize
-  );
+  await fullScanKv(client, account, usageStartDate, usageEndDate, batchSize);
 
   // R2
   await paginateR2Operations(
     client,
     account,
-    startDate,
-    endDate,
+    usageStartDate,
+    usageEndDate,
     async (data: R2OperationsByCursorQuery) => {
       const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
       for (const group of groups.r2OperationsAdaptiveGroups) {
@@ -121,8 +90,8 @@ async function fullScan() {
   await paginateR2Storage(
     client,
     account,
-    startDate,
-    endDate,
+    usageStartDate,
+    usageEndDate,
     async (data: R2StorageByCursorQuery) => {
       const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
       for (const group of groups.r2StorageAdaptiveGroups) {
@@ -140,8 +109,8 @@ async function fullScan() {
   await paginateD1Operations(
     client,
     account,
-    startDate,
-    endDate,
+    usageStartDate,
+    usageEndDate,
     async (data: D1OperationsByCursorQuery) => {
       const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
       for (const group of groups.d1AnalyticsAdaptiveGroups) {
@@ -158,8 +127,8 @@ async function fullScan() {
   await paginateD1Storage(
     client,
     account,
-    startDate,
-    endDate,
+    usageStartDate,
+    usageEndDate,
     async (data: D1StorageByCursorQuery) => {
       const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
       for (const group of groups.d1StorageAdaptiveGroups) {
@@ -175,70 +144,13 @@ async function fullScan() {
 }
 
 async function activeOnly() {
-  // KV
-  await paginateKvActiveNamespaces(
+  await activeOnlyKv(
     client,
     account,
-    startDate,
-    endDate,
-    async (data: KvActiveNamespacesQuery) => {
-      // Extract namespaceIds
-      const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
-      const namespaceIds = groups.kvOperationsAdaptiveGroups.map(
-        (x) => x.dimensions?.namespaceId ?? error("missing namespaceId")
-      );
-      console.log(`Checking ${namespaceIds.length} namespaces`);
-
-      // Check operations for the active namespaces
-      const operations = await client.query<
-        KvOperationsByIdQuery,
-        KvOperationsByIdQueryVariables
-      >({
-        query: kvOperationsByIdsQuery,
-        variables: {
-          accountTag: account,
-          startDate: startDate,
-          endDate: endDate,
-          resourceIds: namespaceIds,
-        },
-      });
-
-      const operationsByNamespace =
-        operations.data.viewer?.accounts.at(0) ?? error("missing groups");
-
-      for (const group of operationsByNamespace.kvOperationsAdaptiveGroups) {
-        console.log(
-          `KV operations ${group.dimensions?.namespaceId}: ${JSON.stringify(
-            group.sum
-          )}`
-        );
-      }
-
-      // Check storage for the active namespaces
-      const storage = await client.query<
-        KvStorageByIdQuery,
-        KvStorageByIdQueryVariables
-      >({
-        query: kvStorageByIdsQuery,
-        variables: {
-          accountTag: account,
-          startDate: startDate,
-          endDate: endDate,
-          resourceIds: namespaceIds,
-        },
-      });
-
-      const storageByNamespace =
-        storage.data.viewer?.accounts.at(0) ?? error("missing groups");
-
-      for (const group of storageByNamespace.kvStorageAdaptiveGroups) {
-        console.log(
-          `KV storage ${group.dimensions?.namespaceId}: ${JSON.stringify(
-            group.max
-          )}`
-        );
-      }
-    },
+    activeStartDate,
+    activeEndDate,
+    usageStartDate,
+    usageEndDate,
     batchSize
   );
 
@@ -246,8 +158,8 @@ async function activeOnly() {
   await paginateR2ActiveBuckets(
     client,
     account,
-    startDate,
-    endDate,
+    usageStartDate,
+    usageEndDate,
     async (data: R2ActiveBucketsQuery) => {
       // Extract bucketNames
       const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
@@ -264,8 +176,8 @@ async function activeOnly() {
         query: r2OperationsByIdsQuery,
         variables: {
           accountTag: account,
-          startDate: startDate,
-          endDate: endDate,
+          startDate: usageStartDate,
+          endDate: usageEndDate,
           resourceIds: bucketNames,
         },
       });
@@ -289,8 +201,8 @@ async function activeOnly() {
         query: r2StorageByIdsQuery,
         variables: {
           accountTag: account,
-          startDate: startDate,
-          endDate: endDate,
+          startDate: usageStartDate,
+          endDate: usageEndDate,
           resourceIds: bucketNames,
         },
       });
@@ -313,8 +225,8 @@ async function activeOnly() {
   await paginateD1ActiveDatabases(
     client,
     account,
-    startDate,
-    endDate,
+    usageStartDate,
+    usageEndDate,
     async (data: D1ActiveDatabasesQuery) => {
       // Extract databaseIds
       const groups = data.viewer?.accounts.at(0) ?? error("missing groups");
@@ -331,8 +243,8 @@ async function activeOnly() {
         query: d1OperationsByIdsQuery,
         variables: {
           accountTag: account,
-          startDate: startDate,
-          endDate: endDate,
+          startDate: usageStartDate,
+          endDate: usageEndDate,
           resourceIds: databaseIds,
         },
       });
@@ -356,8 +268,8 @@ async function activeOnly() {
         query: d1StorageByIdsQuery,
         variables: {
           accountTag: account,
-          startDate: startDate,
-          endDate: endDate,
+          startDate: usageStartDate,
+          endDate: usageEndDate,
           resourceIds: databaseIds,
         },
       });
@@ -378,3 +290,4 @@ async function activeOnly() {
 }
 
 await fullScan();
+// await activeOnly();
