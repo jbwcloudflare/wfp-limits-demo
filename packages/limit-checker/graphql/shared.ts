@@ -4,7 +4,7 @@ export interface PaginationConfig<TData, TVariables> {
   client: ApolloClient<any>;
   query: DocumentNode;
   variables: TVariables;
-  batchProcessor: (data: TData) => Promise<void> | void;
+  batchProcessor: (data: TData) => Promise<number> | number;
   getCursor: (data: TData) => string | null;
   batchSize: number;
 }
@@ -23,6 +23,8 @@ export async function paginateQuery<
   let cursor = variables.cursor;
   let hasMore = true;
 
+  const start = Date.now();
+  let rowsProcessed = 0;
   while (hasMore) {
     const { data, errors } = await client.query<TData, TVariables>({
       query,
@@ -30,7 +32,7 @@ export async function paginateQuery<
         ...variables,
         cursor,
         limit: batchSize,
-      } as TVariables,
+      },
       fetchPolicy: "network-only", // Ensure fresh data for each page
     });
 
@@ -43,7 +45,7 @@ export async function paginateQuery<
     }
 
     // Process the current batch
-    await batchProcessor(data);
+    rowsProcessed += await batchProcessor(data);
 
     // Get the next cursor from the data
     const nextCursor = getCursor(data);
@@ -55,4 +57,7 @@ export async function paginateQuery<
       cursor = nextCursor;
     }
   }
+
+  const elapsed = Date.now() - start;
+  console.log(`Processed ${rowsProcessed} rows in ${elapsed} ms`);
 }

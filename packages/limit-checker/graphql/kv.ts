@@ -43,6 +43,7 @@ export async function fullScanKv(
           )}`
         );
       }
+      return groups.kvOperationsAdaptiveGroups.length;
     },
     batchSize
   );
@@ -60,6 +61,7 @@ export async function fullScanKv(
           )}`
         );
       }
+      return groups.kvStorageAdaptiveGroups.length;
     },
     batchSize
   );
@@ -139,16 +141,18 @@ export async function activeOnlyKv(
           )}`
         );
       }
+      return namespaceIds.length;
     },
     batchSize
   );
 }
+
 export async function paginateKvActiveNamespaces(
   client: ApolloClient<any>,
   accountTag: string,
   startDate: string,
   endDate: string,
-  batchProcessor: (data: KvActiveNamespacesQuery) => Promise<void> | void,
+  batchProcessor: (data: KvActiveNamespacesQuery) => Promise<number> | number,
   batchSize: number
 ) {
   await paginateQuery({
@@ -172,7 +176,7 @@ export async function paginateKvOperations(
   accountTag: string,
   startDate: string,
   endDate: string,
-  batchProcessor: (data: KvOperationsByCursorQuery) => Promise<void> | void,
+  batchProcessor: (data: KvOperationsByCursorQuery) => Promise<number> | number,
   batchSize: number
 ) {
   await paginateQuery({
@@ -196,7 +200,7 @@ export async function paginateKvStorage(
   accountTag: string,
   startDate: string,
   endDate: string,
-  batchProcessor: (data: KvStorageByCursorQuery) => Promise<void> | void,
+  batchProcessor: (data: KvStorageByCursorQuery) => Promise<number> | number,
   batchSize: number
 ) {
   await paginateQuery({

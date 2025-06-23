@@ -4,8 +4,6 @@ import { env } from "process";
 
 export function getApolloClient() {
   const graphqlEndpoint = "https://api.cloudflare.com/client/v4/graphql";
-  const accountTag =
-    env.CLOUDFLARE_ACCOUNT ?? error("missing CLOUDLFARE_ACCOUNT");
   const apiToken =
     env.CLOUDFLARE_API_TOKEN ?? error("missing CLOUDFLARE_API_TOKEN");
 
